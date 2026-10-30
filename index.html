@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1e6fe0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="RoboHand">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Smart Robot Arm</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <img src="icons/icon-192.png" alt="" class="logo">
+      <div>
+        <h1>Smart Robot Arm</h1>
+        <p class="sub" id="modeText">Not connected</p>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill" id="pillBroker"><i></i>Cloud</span>
+      <span class="pill" id="pillDevice"><i></i>Arm</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- 即時手形圖 -->
+    <section class="card hand-card">
+      <svg id="handSvg" viewBox="0 0 300 300" role="img" aria-label="Live robot hand pose">
+        <!-- forearm -->
+        <path d="M100 300 L110 250 Q150 236 190 250 L200 300 Z" fill="#e53935"/>
+        <rect x="104" y="252" width="92" height="16" rx="8" fill="#b71c1c"/>
+        <circle cx="150" cy="288" r="5" fill="#cfd8dc" stroke="#90a4ae" stroke-width="2"/>
+        <path d="M120 270 Q124 285 118 298" fill="none" stroke="#ff8a80" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+        <!-- wrist joint -->
+        <rect x="124" y="226" width="52" height="30" rx="12" fill="#c62828"/>
+        <circle cx="150" cy="241" r="6" fill="#2b2f3a"/>
+        <g id="handRot">
+          <g id="fingers"></g>
+          <rect x="84" y="126" width="132" height="116" rx="44" fill="#2b2f3a"/>
+          <rect x="94" y="134" width="46" height="12" rx="6" fill="#fff" opacity=".12"/>
+          <g id="f0g"></g>
+          <!-- face -->
+          <g id="face">
+            <ellipse cx="127" cy="180" rx="12" ry="14" fill="#fff"/>
+            <ellipse cx="173" cy="180" rx="12" ry="14" fill="#fff"/>
+            <circle cx="129" cy="182" r="7" fill="#1b2a3d"/>
+            <circle cx="175" cy="182" r="7" fill="#1b2a3d"/>
+            <circle cx="131.5" cy="179" r="2.4" fill="#fff"/>
+            <circle cx="177.5" cy="179" r="2.4" fill="#fff"/>
+            <ellipse cx="108" cy="204" rx="9" ry="5.5" fill="#ff8a9b" opacity=".8"/>
+            <ellipse cx="192" cy="204" rx="9" ry="5.5" fill="#ff8a9b" opacity=".8"/>
+            <path id="mouth" d="M138 200 Q150 214 162 200" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+          </g>
+        </g>
+      </svg>
+      <div class="hand-info">
+        <span id="speedNow"></span>
+      </div>
+    </section>
+
+    <!-- 自主示範 -->
+    <section class="card">
+      <h2>Auto Demo</h2>
+      <div class="demo-grid" id="demoGrid"></div>
+      <button class="btn stop" id="btnStop" type="button">Stop Demo (hold pose)</button>
+    </section>
+
+    <!-- 手動控制 -->
+    <section class="card">
+      <h2>Manual Control</h2>
+      <div id="sliders"></div>
+
+      <h3>Quick Poses</h3>
+      <div class="pose-grid" id="poseGrid"></div>
+
+      <h3>Movement Speed</h3>
+      <div class="slider-row speed-row">
+        <input type="range" id="speed" min="20" max="600" step="10" value="250" aria-label="Movement speed">
+        <output id="speedVal">250</output>
+      </div>
+
+      <button class="btn relax" id="btnRelax" type="button">Relax Motors (release torque)</button>
+    </section>
+
+    <!-- 設定 -->
+    <section class="card">
+      <details id="settings">
+        <summary>Connection Settings</summary>
+        <label class="field">Device ID (must match DEVICE_ID in the ESP32 sketch)
+          <input id="deviceId" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field">MQTT WebSocket URL
+          <input id="brokerUrl" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </label>
+        <div class="row">
+          <button class="btn primary" id="btnConnect" type="button">Save &amp; Reconnect</button>
+          <button class="btn ghost" id="btnInstall" type="button" hidden>Install App</button>
+        </div>
+        <p class="hint" id="topicHint"></p>
+      </details>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="mqtt.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
