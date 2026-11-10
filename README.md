@@ -1,108 +1,56 @@
-# 智慧機器手臂（5 指 + 手腕）
+# Robot Arm Jog（簡易點動版，連續旋轉 MG996R）
 
-使用 6 顆 MG996R 伺服馬達驅動五根手指與手腕，由 ESP32 經 WiFi 連線 `broker.emqx.io`（MQTT），搭配手機網頁 App（英文介面，可安裝成 Web App）進行：
+6 顆**連續旋轉**版 MG996R：**按住按鈕馬達就轉，放開就停**。開機時所有馬達都不輸出訊號，直到您按下某顆馬達的按鈕，該顆才會啟動。
 
-- **自主示範**：手指波浪、數字 1～5、剪刀石頭布、抓取與轉腕、全部展示（循環）
-- **手動控制**：6 軸滑桿、9 種快速手勢、動作速度調整、放鬆馬達
-- **即時回報**：手形圖會依手臂實際位置同步動作
+## 連續旋轉伺服馬達的特性
 
-## 檔案結構
+- 訊號脈寬代表「轉速與方向」，不是角度：約 1500 µs 停止，偏離越多轉越快，偏向哪一邊決定轉向。
+- **沒有位置回授**，ESP32 不知道真正轉到哪裡。本程式用「轉動時間」推算行程（Travel），只是估計值，會有累積誤差，機構被卡住時也不準。
+
+## 安全設計
+
+- **開機全部不動**：`setup()` 不啟動任何馬達，6 條訊號腳為輸入（下拉），沒有任何脈衝輸出。
+- **放開就停且斷訊號**：先送停止脈寬 150 ms，再斷開訊號。連續旋轉馬達的中立點若沒校準，持續送 1500 µs 會緩慢爬行，斷開訊號可確保完全不動。
+- **按住才轉**：網頁按住時每 80 ms 重送一次；ESP32 超過 300 ms 沒收到就停止。放開、手機當機、斷網、切換 App 都會停。MQTT 斷線也會立即停止。
+- **單次最長轉動 8 秒**（`MAX_RUN_MS`）：超過後該顆鎖定，必須放開按鈕再按才會再轉，避免拉線或捲軸被轉過頭。
+- **軟體行程上下限**（`TRAVEL_MIN[]`、`TRAVEL_MAX[]`）：預設關閉（±999），請依機構實測後縮小，例如 -6.0 ～ +6.0。到達極限後只允許往反方向轉。
+- **Emergency Stop**：立即停止全部馬達。
+
+## 第一次使用前必做：校正中立點
+
+1. 先**拆掉拉線**，馬達不要帶負載。
+2. 燒錄後在網頁按住某顆馬達讓它轉，再放開。
+3. 若放開後馬達仍緩慢轉動：用小螺絲起子微調馬達外殼側面的微調孔（可變電阻），或修改 `.ino` 的 `STOP_US[]`（例如 1490 或 1510），直到完全靜止。
+4. 若「+」按鈕的轉向與機構需要的相反，把 `DIR_SIGN[]` 對應項改成 `-1`。
+5. 在網頁「Jog Speed」選 Slow／Medium／Fast（脈寬偏移 70／160／300 µs）。
+6. 裝上拉線後，從 Slow 開始，量測手指完全伸直到完全彎曲各需要多少 Travel，再把 `TRAVEL_MIN[]`／`TRAVEL_MAX[]` 設好，並在機構處於已知位置時按「Reset Travel Counters to 0」歸零。
+
+> Travel 單位：以 Medium 速度轉 1 秒 = 1.0，其他速度會等比換算。
+
+## 檔案
 
 ```
-RobotArm/
-├─ index.html / style.css / app.js   手機網頁 App
-├─ mqtt.min.js                        MQTT.js 5.10.1（本機附帶，支援離線載入）
-├─ manifest.json / sw.js              PWA 安裝與離線快取
-├─ icons/                             App 圖示（手掌造型）
-├─ robotarm_esp32/robotarm_esp32.ino  ESP32 程式（Arduino IDE）
+simple/
+├─ index.html / style.css / app.js   手機網頁（英文介面）
+├─ mqtt.min.js, manifest.json, sw.js, icons/   PWA 與函式庫
+├─ robotarm_jog/robotarm_jog.ino     ESP32 程式
 └─ README.md
 ```
 
-## 一、硬體接線
+## 使用步驟
 
-| 軸 | 馬達訊號腳 | 軸 | 馬達訊號腳 |
-|---|---|---|---|
-| 拇指 | GPIO25 | 無名指 | GPIO32 |
-| 食指 | GPIO26 | 小指 | GPIO33 |
-| 中指 | GPIO27 | 手腕 | GPIO13 |
+1. Arduino IDE 安裝 **ESP32Servo**、**PubSubClient**，開啟 `robotarm_jog/robotarm_jog.ino`。
+2. 修改 `WIFI_SSID`、`WIFI_PASS`、`DEVICE_ID`（須獨一無二），上傳。
+3. 接線：拇指 25、食指 26、中指 27、無名指 32、小指 33、手腕 13；馬達電源用外部 6 V（≥5 A）並與 ESP32 共地。建議每條訊號線對 GND 加 10 kΩ 下拉電阻。
+4. 將本資料夾內的網頁檔案上傳到 GitHub Pages。
+5. 手機開啟網頁，在「Connection Settings」確認 Device ID 相同。右上角 Cloud 與 Arm 都變綠即可使用。
 
-MG996R 線色：橘／黃＝訊號、紅＝V+、棕／黑＝GND。
+## MQTT（`shutech/robotarm-jog/<DEVICE_ID>/…`）
 
-> **電源注意**
-> - 6 顆 MG996R 的紅線請接 **外部 5～6 V 電源**（建議 6 V、5 A 以上；堵轉時單顆可達 2.5 A），**不可**由 ESP32 的 5V／USB 供電。
-> - 外部電源 GND 必須與 ESP32 GND **共地**。
-> - 電源端並聯 1000～2200 µF 電容，可避免動作時 ESP32 重置或馬達抖動。
-> - 程式啟動時會逐顆啟動馬達以降低突波電流。
+| Topic | 內容 |
+|---|---|
+| `cmd` | `M,<0~5>,<1\|-1\|0>` 轉動／停止；`V,<20~400>` 速度（脈寬偏移 µs）；`S` 或 `R` 停止全部；`Z` 行程歸零 |
+| `status` | `{"t":[行程×10 …],"m":[轉向 …],"v":速度}` |
+| `online` | `1` / `0`（retained + LWT） |
 
-## 二、燒錄 ESP32
-
-1. Arduino IDE 安裝 ESP32 開發板支援，開發板選 **ESP32 Dev Module**。
-2. 函式庫管理員安裝：**ESP32Servo**、**PubSubClient**、**ArduinoJson（v7.x）**。
-3. 開啟 `robotarm_esp32/robotarm_esp32.ino`，修改：
-   - `WIFI_SSID`、`WIFI_PASS`
-   - `DEVICE_ID`：公用 broker 任何人皆可訂閱，請改成獨一無二的名稱（只用英數字與 `-`、`_`）
-4. 上傳後開啟序列埠監控（115200）可看到連線狀況。
-
-### 校正方向與角度範圍
-
-`CFG[]` 中每一軸有 `openDeg`（0 % 伸直時的角度）與 `bendDeg`（100 % 彎曲時的角度）：
-
-- 手指彎曲方向相反 → 把兩個數字對調（例如 `180, 0`）。
-- 馬達頂到機構極限 → 縮小範圍（例如 `20, 160`）。
-- 手腕 50 % 為中心位置。
-
-**建議先把手臂機構放鬆、拆除拉線再通電測試，確認方向與範圍後再裝上拉線。**
-
-## 三、部署網頁到 GitHub Pages
-
-1. 將 `index.html`、`style.css`、`app.js`、`mqtt.min.js`、`manifest.json`、`sw.js`、`icons/` 上傳到 GitHub 儲存庫（根目錄）。
-2. Settings → Pages → Branch 選 `main`、資料夾 `/ (root)`。
-3. 以手機開啟 `https://<帳號>.github.io/<儲存庫>/`：
-   - Android Chrome：選單 →「安裝應用程式」，或點網頁內「Install App」。
-   - iPhone Safari：分享 →「加入主畫面」。
-4. 打開「Connection Settings」，確認 **裝置 ID 與 ESP32 的 `DEVICE_ID` 相同**，按「Save & Reconnect」。右上角「Cloud」與「Arm」兩個指示燈都變綠即可控制。
-
-> 更新網站後若手機仍是舊版，請修改 `sw.js` 內的 `VERSION` 再上傳。
-
-## 四、MQTT 通訊規格
-
-`BASE = shutech/robotarm/<DEVICE_ID>`；ESP32 使用 `broker.emqx.io:1883`，網頁使用 `wss://broker.emqx.io:8084/mqtt`。
-
-| Topic | 方向 | 內容 |
-|---|---|---|
-| `BASE/cmd` | App → ESP32 | JSON 控制指令 |
-| `BASE/status` | ESP32 → App | JSON 狀態（位置變化時約每 150 ms，閒置時每 3 秒） |
-| `BASE/online` | ESP32 → App | `1` 在線 / `0` 離線（retained + LWT） |
-
-**控制指令（cmd）**
-
-```json
-{"s":[0,0,0,0,0,50]}              // 6 軸位置 0~100：拇、食、中、無名、小、腕
-{"i":1,"v":80}                    // 單軸
-{"mode":"demo","demo":"wave"}     // wave / count / rps / grab / show
-{"mode":"manual"}                 // 停止示範，保持姿勢
-{"mode":"relax"}                  // 停止 PWM，馬達放鬆
-{"speed":250}                     // 手動速度 20~600（%/秒）
-```
-
-**狀態（status）**
-
-```json
-{"mode":"demo","demo":"show","now":"wave","spd":250,"s":[0,0,0,0,0,50],"rssi":-58,"up":1234}
-```
-
-## 五、自訂示範動作
-
-在 `.ino` 的 `DEMO_*` 陣列中編輯，每一列為一個步驟：
-
-```
-{{拇,食,中,無名,小,腕}, 速度(%/秒), 到位後停留(ms)}
-```
-
-新增動作後，把它加入 `DEMOS[]`，並在 `app.js` 的 `DEMOS` 加上對應的 `id` 與英文名稱即可。
-
-## 六、安全提醒
-
-- 動作時請避免手指夾入機構；初次測試請降低速度。
-- 長時間不使用請按「Relax Motors」，可減少發熱與抖動。
-- ESP32 斷線時，示範動作仍會繼續；需要停止可斷電或回到網頁按「Stop Demo」。
+此版本與先前的完整版（角度型伺服）使用不同的 topic；請不要同時讓兩個程式控制同一組馬達。

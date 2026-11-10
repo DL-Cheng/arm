@@ -1,5 +1,5 @@
-// Service Worker：快取靜態檔案以支援離線開啟與安裝。更新網站後請修改 VERSION。
-const VERSION = 'robotarm-v3';
+// Service Worker: network-first, falls back to cache. Bump VERSION after changing the site.
+const VERSION = 'robotarm-jog-v2';
 const ASSETS = [
   './', './index.html', './style.css', './app.js', './mqtt.min.js',
   './manifest.json', './icons/icon.svg', './icons/icon-192.png',
@@ -18,7 +18,6 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 網路優先，失敗時使用快取（確保更新後能取得新版）
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(

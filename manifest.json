@@ -1,7 +1,7 @@
 {
-  "name": "Smart Robot Arm",
-  "short_name": "RoboHand",
-  "description": "ESP32 + MG996R robot hand: MQTT remote control and autonomous demos",
+  "name": "Robot Arm Jog",
+  "short_name": "Arm Jog",
+  "description": "Hold-to-move jog control for a 6-servo robot hand",
   "lang": "en",
   "start_url": "./index.html",
   "scope": "./",
