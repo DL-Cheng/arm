@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="RoboHand">
+  <title>RoboHand Control</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="RoboHand home">
+      <img src="icons/icon.svg" alt="">
+      <span><strong>ROBOHAND</strong><small>SMART CONTROL SYSTEM</small></span>
+    </a>
+    <div class="connection">
+      <span class="pill" id="pillBroker"><i></i>Broker · 服务器</span>
+      <span class="pill" id="pillDevice"><i></i>Hand · 机械手</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">CONTROL CENTER <span lang="zh-Hans">控制中心</span></p>
+        <h1>Robotic hand<br><span>at your command.</span></h1>
+        <p class="hero-translation" lang="zh-Hans">机械手，由你掌控。</p>
+        <p class="muted" id="modeText">Connecting to MQTT…</p>
+      </div>
+      <button class="btn danger estop" id="btnStop" type="button" aria-label="Emergency stop all motors / 紧急停止所有电机">■ <span>STOP ALL<small lang="zh-Hans">全部停止</small></span></button>
+    </section>
+
+    <aside class="buddy-note" aria-label="RoboHand mascot says hello">
+      <span class="buddy-emoji" aria-hidden="true">🤖</span>
+      <span><strong>Beep boop! Your hand-bot is ready.</strong><small lang="zh-Hans">滴滴！机械手小伙伴准备好了。 · 慢慢来，一起玩转机器人 ✨</small>      <span class="sticker-tray" aria-hidden="true"><i>🐾</i><i>🌸</i><i>❤️</i><i>⭐</i></span></span>
+      <img class="buddy-wave" src="icons/icon.svg" alt="" aria-hidden="true">
+    </aside>
+
+    <section class="status-grid" aria-label="System status">
+      <article class="card status-card">
+        <span class="eyebrow">ACTIVE MODE <span lang="zh-Hans">当前模式</span></span><strong id="activeMode">Manual jog</strong><small id="networkStatus">Waiting for device</small>
+      </article>
+      <article class="card status-card">
+        <span class="eyebrow">CAMERA TRACKING <span lang="zh-Hans">摄像头追踪</span></span><strong id="trackingStatus">OFF</strong><small id="recognized">No gesture detected</small>
+      </article>
+    </section>
+
+    <section class="card camera-card">
+      <div class="section-head">
+        <div><p class="eyebrow">VISION INPUT <span lang="zh-Hans">视觉输入</span></p><h2>Hand tracking <span class="zh-inline" lang="zh-Hans">手势追踪</span></h2></div>
+        <button class="btn secondary compact bilingual" id="btnCamera" type="button">Start camera<br><small lang="zh-Hans">开启摄像头</small></button>
+      </div>
+      <div class="camera-frame" id="cameraFrame">
+        <video id="cameraVideo" playsinline muted></video>
+        <div class="camera-placeholder" id="cameraPlaceholder"><span class="camera-icon">◉</span><strong>Camera is off · 摄像头已关闭</strong><small>Allow camera permission to recognize hand gestures<br lang="zh-Hans">允许摄像头权限以识别手势</small></div>
+        <div class="camera-badge" id="cameraBadge">TRACKING OFF</div>
+      </div>
+      <div class="vision-footer"><span id="gestureName">—</span><span id="gestureConfidence">Confidence —</span></div>
+      <p class="notice">Gesture recognition is a phone-side preview only. Automatic imitation is disabled because the documented motors cannot report finger position.<br><span lang="zh-Hans">手势识别仅在手机端预览。由于当前电机无法反馈手指位置，自动模仿功能已关闭。</span></p>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div><p class="eyebrow">ACTUATOR CONTROL <span lang="zh-Hans">执行器控制</span></p><h2>Manual jog <span class="zh-inline" lang="zh-Hans">手动点动</span></h2></div>
+        <span class="tag">HOLD TO MOVE<br><span lang="zh-Hans">按住以移动</span></span>
+      </div>
+      <p class="muted small">Motors respond to speed and direction, not a target angle. Release a button to stop that motor.<br><span lang="zh-Hans">电机按速度和方向转动，不支持指定角度。松开按钮即可停止对应电机。</span></p>
+      <div id="motorControls" class="motor-list"></div>
+      <label class="speed-control"><span>Jog speed <span class="zh-inline" lang="zh-Hans">点动速度</span></span><output id="speedVal">160 μs</output>
+        <input type="range" id="speed" min="20" max="400" step="10" value="160" aria-label="Jog speed">
+      </label>
+      <div class="motor-status" id="motorStatus">No live motor data</div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div><p class="eyebrow">QUICK PLAY <span lang="zh-Hans">快速游戏</span></p><h2>Rock · Paper · Scissors <span class="zh-inline" lang="zh-Hans">石头·剪刀·布</span></h2></div>
+        <button class="btn secondary compact bilingual" id="btnResetGame" type="button">Reset<br><small lang="zh-Hans">重置</small></button>
+      </div>
+      <div class="scoreboard">
+        <div><small>YOU · 你</small><strong id="scoreYou">0</strong></div>
+        <div><small>RESULT · 结果</small><strong id="gameResult">Ready? 准备好了吗？</strong></div>
+        <div><small>ROBO · 机器人</small><strong id="scoreRobot">0</strong></div>
+      </div>
+      <p class="game-message" id="gameMessage">Choose a move or use a recognized camera gesture. · 选择手势，或使用摄像头识别的手势。</p>
+      <div class="game-actions">
+        <button class="move-btn" data-move="rock" type="button"><span>✊</span>Rock <small lang="zh-Hans">石头</small></button>
+        <button class="move-btn" data-move="paper" type="button"><span>✋</span>Paper <small lang="zh-Hans">布</small></button>
+        <button class="move-btn" data-move="scissors" type="button"><span>✌️</span>Scissors <small lang="zh-Hans">剪刀</small></button>
+      </div>
+      <button class="btn secondary wide bilingual" id="btnPlayCamera" type="button" disabled>Play recognized gesture<br><small lang="zh-Hans">使用识别手势开始</small></button>
+      <p class="notice">The phone runs the game and picks a random move. No pose is sent to the physical hand.<br><span lang="zh-Hans">游戏在手机上运行并随机选择机器人手势，不会向实体机械手发送动作。</span></p>
+    </section>
+
+    <section class="card">
+      <div class="section-head"><div><p class="eyebrow">FEATURE READINESS <span lang="zh-Hans">功能状态</span></p><h2>Actuation & sensors <span class="zh-inline" lang="zh-Hans">驱动与传感器</span></h2></div><span class="tag warn">HARDWARE CHECK NEEDED<br><span lang="zh-Hans">需要检查硬件</span></span></div>
+      <div class="actuation-actions">
+        <button class="btn secondary bilingual" type="button" disabled title="Requires verified position-controlled servos · 需要经过验证的位置控制舵机">✋ High-five<br><small lang="zh-Hans">击掌</small></button>
+        <button class="btn secondary bilingual" type="button" disabled title="Requires calibrated position-controlled servos · 需要校准的位置控制舵机">Grab<br><small lang="zh-Hans">抓取</small></button>
+        <button class="btn secondary bilingual" type="button" disabled title="Requires calibrated position-controlled servos · 需要校准的位置控制舵机">Release<br><small lang="zh-Hans">松开</small></button>
+        <button class="btn secondary bilingual" type="button" disabled title="Requires calibrated position-controlled servos · 需要校准的位置控制舵机">Save gesture<br><small lang="zh-Hans">保存手势</small></button>
+      </div>
+      <p class="eyebrow library-label">GESTURE LIBRARY · NOT CALIBRATED <span lang="zh-Hans">手势库 · 未校准</span></p>
+      <div class="preset-list" aria-label="Preset gesture list / 预设手势列表">
+        <span>Open palm · 张开手掌</span><span>Closed fist · 握拳</span><span>Thumbs up · 竖拇指</span><span>Peace sign · V 字手势</span>
+        <span>Pointing · 指向</span><span>Three fingers · 三指</span><span>Rock · 石头</span><span>Paper · 布</span>
+        <span>Scissors · 剪刀</span><span>High-five · 击掌</span>
+      </div>
+      <div class="feature-list">
+        <div><span class="feature-dot"></span><span><strong>High-five / calibrated presets · 击掌 / 已校准预设</strong><small>Not enabled: needs positional servos and per-finger calibration.<br lang="zh-Hans">尚未启用：需要位置控制舵机和逐指校准。</small></span></div>
+        <div><span class="feature-dot"></span><span><strong>Object grip detection · 物体抓握检测</strong><small>Unavailable: no force or pressure sensor is documented.<br lang="zh-Hans">暂不可用：目前没有已确认的力或压力传感器。</small></span></div>
+        <div><span class="feature-dot"></span><span><strong>Physical touch trigger · 实体触摸触发</strong><small>Optional hardware: touch sensor and safe trigger circuit required.<br lang="zh-Hans">可选硬件：需要触摸传感器和安全触发电路。</small></span></div>
+      </div>
+      <p class="safety-note"><strong>Safety:</strong> STOP ALL sends a software command; it does not cut power. Use a physical power cutoff for emergencies.<br><span lang="zh-Hans"><strong>安全提示：</strong>“全部停止”仅发送软件指令，不会切断电源。紧急情况下请使用实体断电开关。</span></p>
+    </section>
+
+    <details class="card settings">
+      <summary>Connection settings · 连接设置</summary>
+      <label class="field">Device ID · 设备编号<input id="deviceId" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label class="field">MQTT WebSocket URL · MQTT WebSocket 地址<input id="brokerUrl" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <div class="settings-actions">
+        <button class="btn primary bilingual" id="btnConnect" type="button">Save & reconnect<br><small lang="zh-Hans">保存并重新连接</small></button>
+        <button class="btn secondary bilingual" id="btnInstall" type="button" hidden>Install app<br><small lang="zh-Hans">安装应用</small></button>
+      </div>
+      <p class="muted small" id="topicHint"></p>
+    </details>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="mqtt.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
